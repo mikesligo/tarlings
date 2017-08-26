@@ -58,8 +58,12 @@ function start_tarlings() {
         var green_networks = [];
         for (var i=0; i< numSprites; i++){
 
-            blue_networks.push(new Brainwave.Network(4, 3, 1, 5));
-            green_networks.push(new Brainwave.Network(4, 3, 1, 5));
+            // 1. sprite x
+            // 2. sprite y
+            // 3. enemy x
+            // 4. enemy y
+            blue_networks.push(new Brainwave.Network(4, 2, 1, 5));
+            green_networks.push(new Brainwave.Network(4, 2, 1, 5));
 
             var blue_sprite = new Sprite(resources.blue.texture);
             blue_sprite.anchor.x = 0.5
@@ -77,33 +81,58 @@ function start_tarlings() {
             green_sprites.push(green_sprite);
         }
 
-        //Tell the `renderer` to `render` the `stage`
-        renderer.autoResize = true;
         renderer.view.style.position = "absolute";
         renderer.view.style.display = "block";
         renderer.autoResize = true;
-        renderer.resize(window.innerWidth, window.innerHeight);
-
-        //        blue_sprite.rotation = Math.radians(180);
-
         renderer.render(stage);
 
+        function set_sprite_pos(sprite, sprite_network, closestOther) {
+            var output = sprite_network.run([
+                sprite.x,
+                sprite.y,
+                closestOther.x,
+                closestOther.y
+            ])
+            sprite.vx = (output[0] - 0.5) * 2;
+            sprite.vy = (output[1] - 0.5) * 2;
+            sprite.y += sprite.vy; 
+            sprite.x += sprite.vx;
+            if (sprite.x < 0) {
+                sprite.x = 0;
+            }
+            else if (sprite.x > window.innerWidth) {
+                sprite.x = window.innerWidth;
+            }
+            if (sprite.y < 0) {
+                sprite.y = 0;
+            }
+            else if (sprite.y > window.innerHeight) {
+                sprite.y = window.innerHeight;
+            }
+        }
         function run_sprites() {
+            renderer.resize(window.innerWidth, window.innerHeight);
+            var maxDistance = Math.sqrt(Math.pow(window.innerWidth, 2) + Math.pow(window.innerHeight, 2));
             requestAnimationFrame(run_sprites);
+
+            var closestPairs = [];
 
             for (var i=0; i< numSprites; i++){
                 var blue_sprite = blue_sprites[i]
-                var output = blue_networks[i].run([
-                    Math.radians(getRandomArbitrary(0,360)),
-                    Math.radians(getRandomArbitrary(0,360)),
-                    Math.radians(getRandomArbitrary(0,360)),
-                    Math.radians(getRandomArbitrary(0,360))
-                ])
-                blue_sprite.rotation = (output[0] - output[1]);
-                blue_sprite.vx = output[2] - 0.5;
-                blue_sprite.vy = output[2] - 0.5;
-                blue_sprite.x += blue_sprite.vx;
-                blue_sprite.y += blue_sprite.vy;
+                var closestDistance = 0;
+                for (var j=0; j< numSprites; j++) {
+                    var green_sprite = green_sprites[j];
+                    var distance = Math.sqrt(Math.pow(green_sprite.x, 2) + Math.pow(green_sprite.y, 2));
+                    if (closestDistance == 0 || distance < closestDistance) {
+                        var closest = green_sprite;
+                    }
+                }
+                closestPairs.push({'blue': blue_sprite, 'green': closest})
+            }
+
+            for (var i=0; i< numSprites; i++){
+                set_sprite_pos(blue_sprites[i], blue_networks[i], closestPairs[i].green);
+                set_sprite_pos(green_sprites[i], green_networks[i], closestPairs[i].green);
             }
             renderer.render(stage);
         };
